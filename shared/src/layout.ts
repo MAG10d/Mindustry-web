@@ -1,6 +1,12 @@
-import { MAX_ENTITIES } from './constants.js';
+import { MAX_ENTITIES, MAP_WIDTH, MAP_HEIGHT } from './constants.js';
 
 export const HEADER_SIZE = 64; // Bytes
+
+export enum TileType {
+    EMPTY = 0,
+    WALL_COPPER = 1,
+    CONVEYOR = 2
+}
 
 // Entity SoA Sizes (in Bytes)
 export const ENTITY_ID_SIZE = MAX_ENTITIES * 2;       // Uint16
@@ -16,7 +22,11 @@ export const OFFSET_TYPES = pad(OFFSET_IDS + ENTITY_ID_SIZE);
 export const OFFSET_POS = pad(OFFSET_TYPES + ENTITY_TYPE_SIZE);
 export const OFFSET_ROT = pad(OFFSET_POS + ENTITY_POS_SIZE);
 
-export const FRAME_SIZE = pad(OFFSET_ROT + ENTITY_ROT_SIZE);
+// Map Data
+export const MAP_SIZE = MAP_WIDTH * MAP_HEIGHT * 2; // Uint16
+export const OFFSET_MAP = pad(OFFSET_ROT + ENTITY_ROT_SIZE);
+
+export const FRAME_SIZE = pad(OFFSET_MAP + MAP_SIZE);
 
 export const TOTAL_MEMORY = HEADER_SIZE + (FRAME_SIZE * 3);
 

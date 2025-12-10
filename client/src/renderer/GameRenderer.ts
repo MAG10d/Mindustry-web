@@ -1,8 +1,8 @@
-import { Application, Assets, Sprite, Container } from 'pixi.js';
+import { Application, Assets, Sprite, Container, Graphics } from 'pixi.js';
 import {
     HEADER_SIZE, FRAME_SIZE, MAX_ENTITIES,
-    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT,
-    HDR_SIM_IDX
+    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP,
+    HDR_SIM_IDX, MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TileType
 } from '@mindustry/shared';
 
 export class GameRenderer {
@@ -14,10 +14,12 @@ export class GameRenderer {
         types: Uint8Array;
         pos: Float32Array;
         rot: Uint8Array;
+        map: Uint16Array;
     }[];
 
     private sprites: Sprite[];
     private container: Container;
+    private mapGraphics: Graphics;
 
     constructor(canvas: HTMLCanvasElement, buffer: SharedArrayBuffer) {
         this.buffer = buffer;
@@ -31,13 +33,15 @@ export class GameRenderer {
                 ids: new Uint16Array(buffer, base + OFFSET_IDS, MAX_ENTITIES),
                 types: new Uint8Array(buffer, base + OFFSET_TYPES, MAX_ENTITIES),
                 pos: new Float32Array(buffer, base + OFFSET_POS, MAX_ENTITIES * 2),
-                rot: new Uint8Array(buffer, base + OFFSET_ROT, MAX_ENTITIES)
+                rot: new Uint8Array(buffer, base + OFFSET_ROT, MAX_ENTITIES),
+                map: new Uint16Array(buffer, base + OFFSET_MAP, MAP_WIDTH * MAP_HEIGHT)
             });
         }
 
         this.app = new Application();
         this.sprites = [];
         this.container = new Container();
+        this.mapGraphics = new Graphics();
 
         this.init(canvas);
     }
@@ -52,6 +56,7 @@ export class GameRenderer {
             autoDensity: true,
         });
 
+        this.app.stage.addChild(this.mapGraphics);
         this.app.stage.addChild(this.container);
 
         // Load Asset
@@ -81,6 +86,32 @@ export class GameRenderer {
 
         const simIdx = Atomics.load(this.header, HDR_SIM_IDX);
         const frame = this.frames[simIdx];
+
+        // Render Map
+        this.mapGraphics.clear();
+
+        // Draw Grid Floor (Gray)
+        this.mapGraphics.rect(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
+        this.mapGraphics.fill(0x222222);
+
+        // Draw Walls
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                const idx = y * MAP_WIDTH + x;
+                const tile = frame.map[idx];
+
+                if (tile !== TileType.EMPTY) {
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+
+                    if (tile === TileType.WALL_COPPER) {
+                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
+                        this.mapGraphics.fill(0xd99d73); // Copper color
+                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
+                    }
+                }
+            }
+        }
 
         // Render entities
         for (let i = 0; i < MAX_ENTITIES; i++) {

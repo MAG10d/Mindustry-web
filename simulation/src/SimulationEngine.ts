@@ -1,13 +1,16 @@
 import { SharedMemoryManager } from './memory/SharedMemoryManager.js';
-import { TICK_RATE } from '@mindustry/shared';
+import { TICK_RATE, MAP_WIDTH, MAP_HEIGHT, TileType } from '@mindustry/shared';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
     private interval: any;
+    private masterMap: Uint16Array;
+    private commandQueue: any[] = [];
 
     constructor() {
         console.log("Simulation Engine Initializing...");
         this.memory = new SharedMemoryManager();
+        this.masterMap = new Uint16Array(MAP_WIDTH * MAP_HEIGHT);
         this.initializeWorld();
     }
 
@@ -26,6 +29,10 @@ export class SimulationEngine {
         return this.memory.sharedBuffer;
     }
 
+    handleMessage(data: any) {
+        this.commandQueue.push(data);
+    }
+
     start() {
         const msPerTick = 1000 / TICK_RATE;
         this.interval = setInterval(() => this.tick(), msPerTick);
@@ -33,17 +40,28 @@ export class SimulationEngine {
     }
 
     tick() {
+        // Process Commands
+        while (this.commandQueue.length > 0) {
+            const cmd = this.commandQueue.shift();
+            if (cmd.type === 'BUILD') {
+                const { x, y, block } = cmd;
+                if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                    const idx = y * MAP_WIDTH + x;
+                    this.masterMap[idx] = block;
+                    console.log(`[Sim] Built block ${block} at (${x}, ${y})`);
+
+                    // Spawn Static Entity for Visual/Collision if needed
+                    // For now, map update is enough for visual if renderer reads map.
+                }
+            }
+        }
+
         const buffer = this.memory.writeFrame;
 
-        // Move entity 0 by +1 X
-        // Note: In a real sim we'd copy from previous frame or state.
-        // Here we just increment what's in the *current write buffer*.
-        // But wait, triple buffering means 'writeFrame' might be 'garbage' or 'old data' from 3 frames ago.
-        // We strictly need to copy state from 'previous' frame to 'next' frame or keep state separate.
-        // For this test, I will assume we maintain state in the buffer (which is wrong for triple buffer without copy).
-        // Or I'll just write `tickCount` to X position to prove it updates.
+        // Copy Master Map to Current Buffer
+        buffer.map.set(this.masterMap);
 
-        // Let's rely on a persistent local state for the dummy entity to ensure continuity.
+        // Move entity 0 by +1 X
         this.dummyX = (this.dummyX || 0) + 1;
 
         buffer.ids[0] = 1; // Ensure ID is set in current buffer
@@ -53,7 +71,7 @@ export class SimulationEngine {
 
         // Log every 60 ticks
         if (this.dummyX % 60 === 0) {
-            console.log(`[Sim] Tick ${this.dummyX} - BufferIdx: ${this.memory['writeIndex']} - Entity X: ${buffer.pos[0]}`);
+            // console.log(`[Sim] Tick ${this.dummyX}`);
         }
 
         this.memory.swap();

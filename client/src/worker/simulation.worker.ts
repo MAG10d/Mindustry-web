@@ -7,4 +7,8 @@ const engine = new SimulationEngine();
 // Post the buffer to the main thread
 postMessage({ type: 'INIT', buffer: engine.buffer });
 
+self.onmessage = (e) => {
+    engine.handleMessage(e.data);
+};
+
 engine.start();

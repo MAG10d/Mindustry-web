@@ -1,7 +1,7 @@
 import {
     TOTAL_MEMORY, HEADER_SIZE, FRAME_SIZE,
-    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT,
-    MAX_ENTITIES,
+    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP,
+    MAX_ENTITIES, MAP_WIDTH, MAP_HEIGHT,
     HDR_TICK, HDR_RENDER_IDX, HDR_SIM_IDX
 } from '@mindustry/shared';
 
@@ -15,6 +15,7 @@ export class SharedMemoryManager {
         types: Uint8Array;
         pos: Float32Array;
         rot: Uint8Array;
+        map: Uint16Array;
     }[];
 
     private writeIndex: number = 0;
@@ -37,7 +38,8 @@ export class SharedMemoryManager {
                 ids: new Uint16Array(this.buffer, base + OFFSET_IDS, MAX_ENTITIES),
                 types: new Uint8Array(this.buffer, base + OFFSET_TYPES, MAX_ENTITIES),
                 pos: new Float32Array(this.buffer, base + OFFSET_POS, MAX_ENTITIES * 2),
-                rot: new Uint8Array(this.buffer, base + OFFSET_ROT, MAX_ENTITIES)
+                rot: new Uint8Array(this.buffer, base + OFFSET_ROT, MAX_ENTITIES),
+                map: new Uint16Array(this.buffer, base + OFFSET_MAP, MAP_WIDTH * MAP_HEIGHT)
             });
         }
     }

@@ -36,7 +36,7 @@ function App() {
     };
   }, []);
 
-  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE' | 'TURRET'>('WALL');
+  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE' | 'TURRET' | 'SOLAR' | 'NODE' | 'BATTERY'>('WALL');
   const [rotation, setRotation] = React.useState(0); // 0=Right, 1=Up, 2=Left, 3=Down
 
   useEffect(() => {
@@ -48,6 +48,9 @@ function App() {
       if (e.key === '4') setMode('DRILL');
       if (e.key === '5') setMode('CORE');
       if (e.key === '6') setMode('TURRET');
+      if (e.key === '7') setMode('SOLAR');
+      if (e.key === '8') setMode('NODE');
+      if (e.key === '9') setMode('BATTERY');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -74,6 +77,9 @@ function App() {
     if (mode === 'DRILL') block = TileType.DRILL_MECHANICAL;
     if (mode === 'CORE') block = TileType.CORE_SHARD;
     if (mode === 'TURRET') block = TileType.TURRET_DUO;
+    if (mode === 'SOLAR') block = TileType.SOLAR_PANEL;
+    if (mode === 'NODE') block = TileType.POWER_NODE;
+    if (mode === 'BATTERY') block = TileType.BATTERY;
     if (mode === 'CONVEYOR') {
         // Map rotation to TileType
         // 0=Right -> CONVEYOR_RIGHT
@@ -113,6 +119,8 @@ function App() {
                 <span className="bg-gray-700 px-2 rounded">[4] Drill</span>
                 <span className="bg-gray-700 px-2 rounded">[5] Core</span>
                 <span className="bg-gray-700 px-2 rounded">[6] Turret</span>
+                <span className="bg-gray-700 px-2 rounded">[7] Solar</span>
+                <span className="bg-gray-700 px-2 rounded">[8] Node</span>
                 <button
                     className="bg-red-700 px-2 rounded pointer-events-auto"
                     onClick={() => workerRef.current?.postMessage({ type: 'SPAWN_ENEMY', x: 0, y: 0 })}

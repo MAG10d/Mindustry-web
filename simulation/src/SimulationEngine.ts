@@ -6,6 +6,7 @@ import { updateInventory } from './systems/InventorySystem.js';
 import { UnitSystem } from './systems/UnitSystem.js';
 import { ProjectileSystem } from './systems/ProjectileSystem.js';
 import { TurretSystem } from './systems/TurretSystem.js';
+import { PowerSystem } from './systems/PowerSystem.js';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
@@ -16,6 +17,7 @@ export class SimulationEngine {
     private unitSystem: UnitSystem;
     private projectileSystem: ProjectileSystem;
     private turretSystem: TurretSystem;
+    private powerSystem: PowerSystem;
 
     constructor() {
         console.log("Simulation Engine Initializing...");
@@ -25,6 +27,7 @@ export class SimulationEngine {
         this.unitSystem = new UnitSystem();
         this.projectileSystem = new ProjectileSystem();
         this.turretSystem = new TurretSystem(this.projectileSystem);
+        this.powerSystem = new PowerSystem();
         this.initializeWorld();
     }
 
@@ -63,6 +66,7 @@ export class SimulationEngine {
                 if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
                     const idx = y * MAP_WIDTH + x;
                     this.masterMap[idx] = block;
+                    this.powerSystem.triggerRebuild(); // Rebuild graph on block placement
                     console.log(`[Sim] Built block ${block} at (${x}, ${y})`);
                 }
             } else if (cmd.type === 'SPAWN_ITEM') {
@@ -101,11 +105,12 @@ export class SimulationEngine {
         const buffer = this.memory.writeFrame;
 
         // Run Systems
-        this.productionSystem.update(this.masterMap, buffer);
+        this.powerSystem.update(this.masterMap, buffer.mapState);
+        this.productionSystem.update(this.masterMap, buffer.mapState, buffer);
         updateConveyors(buffer, this.masterMap);
         updateInventory(buffer, this.masterMap, this.memory.header);
         this.unitSystem.update(buffer, this.masterMap);
-        this.turretSystem.update(this.masterMap, buffer);
+        this.turretSystem.update(this.masterMap, buffer.mapState, buffer);
         this.projectileSystem.update(buffer);
 
         // Copy Master Map to Current Buffer

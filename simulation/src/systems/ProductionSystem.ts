@@ -9,13 +9,29 @@ export class ProductionSystem {
         this.cooldowns = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
     }
 
-    update(map: Uint16Array, frame: { ids: Uint16Array; types: Uint8Array; pos: Float32Array }) {
+    update(map: Uint16Array, mapState: Uint8Array, frame: { ids: Uint16Array; types: Uint8Array; pos: Float32Array }) {
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
                 const idx = y * MAP_WIDTH + x;
                 const tile = map[idx];
 
                 if (tile === TileType.DRILL_MECHANICAL) {
+                    // Check Power Efficiency
+                    const efficiency = mapState[idx] / 100.0;
+                    if (efficiency < 0.1) continue; // Not enough power to run
+
+                    // Scale cooldown speed by efficiency
+                    // Simply: Add efficiency to cooldown? (e.g. 0.5 add)
+                    // Or probability?
+                    // Let's use Accumulator: cooldown += efficiency.
+                    // Uint8Array might overflow if we just add small floats?
+                    // But cooldown is Int.
+                    // Let's implement probabilistic tick if eff < 1?
+                    // Or better: Use Float array for cooldowns? No memory.
+
+                    // Simple logic: If efficiency >= 1, full speed. If < 1, chance to skip tick?
+                    if (Math.random() > efficiency) continue;
+
                     this.cooldowns[idx]++;
 
                     // Drill Rate: Every 60 ticks (1 sec)

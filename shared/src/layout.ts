@@ -11,7 +11,10 @@ export enum TileType {
     CONVEYOR_RIGHT = 5,
     DRILL_MECHANICAL = 6,
     CORE_SHARD = 7,
-    TURRET_DUO = 8
+    TURRET_DUO = 8,
+    SOLAR_PANEL = 9,
+    BATTERY = 10,
+    POWER_NODE = 11
 }
 
 export enum EntityType {
@@ -40,7 +43,11 @@ export const OFFSET_ROT = pad(OFFSET_POS + ENTITY_POS_SIZE);
 export const MAP_SIZE = MAP_WIDTH * MAP_HEIGHT * 2; // Uint16
 export const OFFSET_MAP = pad(OFFSET_ROT + ENTITY_ROT_SIZE);
 
-export const FRAME_SIZE = pad(OFFSET_MAP + MAP_SIZE);
+// Map State (Efficiency/Power)
+export const MAP_STATE_SIZE = MAP_WIDTH * MAP_HEIGHT * 1; // Uint8
+export const OFFSET_MAP_STATE = pad(OFFSET_MAP + MAP_SIZE);
+
+export const FRAME_SIZE = pad(OFFSET_MAP_STATE + MAP_STATE_SIZE);
 
 export const TOTAL_MEMORY = HEADER_SIZE + (FRAME_SIZE * 3);
 

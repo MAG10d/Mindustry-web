@@ -1,6 +1,6 @@
 import {
     TOTAL_MEMORY, HEADER_SIZE, FRAME_SIZE,
-    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP,
+    OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP, OFFSET_MAP_STATE,
     MAX_ENTITIES, MAP_WIDTH, MAP_HEIGHT,
     HDR_TICK, HDR_RENDER_IDX, HDR_SIM_IDX
 } from '@mindustry/shared';
@@ -16,6 +16,7 @@ export class SharedMemoryManager {
         pos: Float32Array;
         rot: Uint8Array;
         map: Uint16Array;
+        mapState: Uint8Array;
     }[];
 
     private writeIndex: number = 0;
@@ -27,7 +28,7 @@ export class SharedMemoryManager {
         // Initialize Header
         Atomics.store(this.header, HDR_TICK, 0);
         Atomics.store(this.header, HDR_RENDER_IDX, 0);
-        Atomics.store(this.header, HDR_SIM_IDX, 1);
+        Atomics.store(this.header, HDR_SIM_IDX, 0); // Start pointing to 0 (Empty) to avoid race with writeIndex 1
 
         this.writeIndex = 1; // Start writing to buffer 1
 
@@ -39,7 +40,8 @@ export class SharedMemoryManager {
                 types: new Uint8Array(this.buffer, base + OFFSET_TYPES, MAX_ENTITIES),
                 pos: new Float32Array(this.buffer, base + OFFSET_POS, MAX_ENTITIES * 2),
                 rot: new Uint8Array(this.buffer, base + OFFSET_ROT, MAX_ENTITIES),
-                map: new Uint16Array(this.buffer, base + OFFSET_MAP, MAP_WIDTH * MAP_HEIGHT)
+                map: new Uint16Array(this.buffer, base + OFFSET_MAP, MAP_WIDTH * MAP_HEIGHT),
+                mapState: new Uint8Array(this.buffer, base + OFFSET_MAP_STATE, MAP_WIDTH * MAP_HEIGHT)
             });
         }
     }

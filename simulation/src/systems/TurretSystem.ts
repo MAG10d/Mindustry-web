@@ -17,11 +17,14 @@ export class TurretSystem {
         this.projectileSystem = projectileSystem;
     }
 
-    update(map: Uint16Array, frame: { ids: Uint16Array; types: Uint8Array; pos: Float32Array }) {
+    update(map: Uint16Array, mapState: Uint8Array, frame: { ids: Uint16Array; types: Uint8Array; pos: Float32Array }) {
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
                 const idx = y * MAP_WIDTH + x;
                 if (map[idx] === TileType.TURRET_DUO) {
+                    const efficiency = mapState[idx] / 100.0;
+                    if (efficiency < 0.1) continue; // No Power
+
                     if (this.cooldowns[idx] > 0) this.cooldowns[idx]--;
 
                     if (this.cooldowns[idx] === 0) {

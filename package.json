@@ -1,0 +1,21 @@
+{
+  "name": "mindustry-web-engine",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "simulation",
+    "shared"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace=client",
+    "build:client": "npm run build --workspace=client",
+    "build:server": "npm run build --workspace=server",
+    "build:simulation": "npm run build --workspace=simulation",
+    "build:shared": "npm run build --workspace=shared"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,17 +1,21 @@
 import { SharedMemoryManager } from './memory/SharedMemoryManager.js';
 import { TICK_RATE, MAP_WIDTH, MAP_HEIGHT, TileType, EntityType, MAX_ENTITIES } from '@mindustry/shared';
 import { updateConveyors } from './systems/ConveyorSystem.js';
+import { ProductionSystem } from './systems/ProductionSystem.js';
+import { updateInventory } from './systems/InventorySystem.js';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
     private interval: any;
     private masterMap: Uint16Array;
     private commandQueue: any[] = [];
+    private productionSystem: ProductionSystem;
 
     constructor() {
         console.log("Simulation Engine Initializing...");
         this.memory = new SharedMemoryManager();
         this.masterMap = new Uint16Array(MAP_WIDTH * MAP_HEIGHT);
+        this.productionSystem = new ProductionSystem();
         this.initializeWorld();
     }
 
@@ -75,7 +79,9 @@ export class SimulationEngine {
         const buffer = this.memory.writeFrame;
 
         // Run Systems
+        this.productionSystem.update(this.masterMap, buffer);
         updateConveyors(buffer, this.masterMap);
+        updateInventory(buffer, this.masterMap, this.memory.header);
 
         // Copy Master Map to Current Buffer
         buffer.map.set(this.masterMap);

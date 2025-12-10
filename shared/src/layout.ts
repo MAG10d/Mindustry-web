@@ -8,7 +8,9 @@ export enum TileType {
     CONVEYOR_UP = 2,
     CONVEYOR_DOWN = 3,
     CONVEYOR_LEFT = 4,
-    CONVEYOR_RIGHT = 5
+    CONVEYOR_RIGHT = 5,
+    DRILL_MECHANICAL = 6,
+    CORE_SHARD = 7
 }
 
 export enum EntityType {
@@ -43,4 +45,4 @@ export const TOTAL_MEMORY = HEADER_SIZE + (FRAME_SIZE * 3);
 export const HDR_TICK = 0;
 export const HDR_RENDER_IDX = 1; // Index of buffer currently being read by Renderer
 export const HDR_SIM_IDX = 2;    // Index of buffer currently being written by Sim
-export const HDR_LOCKED = 3;     // Spinlock
+export const HDR_RES_COPPER = 3; // Global Copper Inventory

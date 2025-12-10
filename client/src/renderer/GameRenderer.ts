@@ -126,6 +126,18 @@ export class GameRenderer {
                         if (tile === TileType.CONVEYOR_RIGHT) this.mapGraphics.lineTo(cx + offset, cy);
 
                         this.mapGraphics.stroke({ width: 2, color: 0xcccccc });
+                    } else if (tile === TileType.DRILL_MECHANICAL) {
+                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
+                        this.mapGraphics.fill(0x88ff88); // Greenish
+                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
+
+                        // Drill details
+                        this.mapGraphics.rect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                        this.mapGraphics.fill(0x55aa55);
+                    } else if (tile === TileType.CORE_SHARD) {
+                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
+                        this.mapGraphics.fill(0xff5555); // Red
+                        this.mapGraphics.stroke({ width: 1, color: 0xffffff });
                     }
                 }
             }

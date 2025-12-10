@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { GameRenderer } from './renderer/GameRenderer';
 import { TILE_SIZE, TileType } from '@mindustry/shared';
+import { ResourcesDisplay } from './components/ui/ResourcesDisplay';
 
 function App() {
   const rendererRef = useRef<GameRenderer | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const [buffer, setBuffer] = React.useState<SharedArrayBuffer | null>(null);
 
   useEffect(() => {
     // Spawn Worker
@@ -15,12 +17,13 @@ function App() {
 
     worker.onmessage = (e) => {
       if (e.data.type === 'INIT') {
-        const buffer = e.data.buffer as SharedArrayBuffer;
-        console.log("Client received SharedArrayBuffer:", buffer);
+        const buf = e.data.buffer as SharedArrayBuffer;
+        setBuffer(buf);
+        console.log("Client received SharedArrayBuffer:", buf);
 
         const canvas = document.getElementById('pixi-canvas') as HTMLCanvasElement;
         if (canvas) {
-          rendererRef.current = new GameRenderer(canvas, buffer);
+          rendererRef.current = new GameRenderer(canvas, buf);
         }
       }
     };
@@ -33,7 +36,7 @@ function App() {
     };
   }, []);
 
-  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM'>('WALL');
+  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE'>('WALL');
   const [rotation, setRotation] = React.useState(0); // 0=Right, 1=Up, 2=Left, 3=Down
 
   useEffect(() => {
@@ -42,6 +45,8 @@ function App() {
       if (e.key === '1') setMode('WALL');
       if (e.key === '2') setMode('CONVEYOR');
       if (e.key === '3') setMode('ITEM');
+      if (e.key === '4') setMode('DRILL');
+      if (e.key === '5') setMode('CORE');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -65,6 +70,8 @@ function App() {
 
     let block = TileType.EMPTY;
     if (mode === 'WALL') block = TileType.WALL_COPPER;
+    if (mode === 'DRILL') block = TileType.DRILL_MECHANICAL;
+    if (mode === 'CORE') block = TileType.CORE_SHARD;
     if (mode === 'CONVEYOR') {
         // Map rotation to TileType
         // 0=Right -> CONVEYOR_RIGHT
@@ -101,9 +108,12 @@ function App() {
                 <span className="bg-gray-700 px-2 rounded">[1] Wall</span>
                 <span className="bg-gray-700 px-2 rounded">[2] Conveyor (R to rotate)</span>
                 <span className="bg-gray-700 px-2 rounded">[3] Spawn Item</span>
+                <span className="bg-gray-700 px-2 rounded">[4] Drill</span>
+                <span className="bg-gray-700 px-2 rounded">[5] Core</span>
             </div>
         </div>
       </div>
+      <ResourcesDisplay buffer={buffer} />
     </div>
   );
 }

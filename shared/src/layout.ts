@@ -5,7 +5,16 @@ export const HEADER_SIZE = 64; // Bytes
 export enum TileType {
     EMPTY = 0,
     WALL_COPPER = 1,
-    CONVEYOR = 2
+    CONVEYOR_UP = 2,
+    CONVEYOR_DOWN = 3,
+    CONVEYOR_LEFT = 4,
+    CONVEYOR_RIGHT = 5
+}
+
+export enum EntityType {
+    NONE = 0,
+    UNIT = 1,
+    ITEM_COPPER = 2
 }
 
 // Entity SoA Sizes (in Bytes)

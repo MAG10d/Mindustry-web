@@ -2,7 +2,7 @@ import { Application, Assets, Sprite, Container, Graphics } from 'pixi.js';
 import {
     HEADER_SIZE, FRAME_SIZE, MAX_ENTITIES,
     OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP,
-    HDR_SIM_IDX, MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TileType
+    HDR_SIM_IDX, HDR_RENDER_IDX, MAP_WIDTH, MAP_HEIGHT, TILE_SIZE, TileType, EntityType
 } from '@mindustry/shared';
 
 export class GameRenderer {
@@ -108,6 +108,24 @@ export class GameRenderer {
                         this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
                         this.mapGraphics.fill(0xd99d73); // Copper color
                         this.mapGraphics.stroke({ width: 1, color: 0x000000 });
+                    } else if (tile >= TileType.CONVEYOR_UP && tile <= TileType.CONVEYOR_RIGHT) {
+                        // Conveyor Base
+                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
+                        this.mapGraphics.fill(0x555555); // Dark Gray
+
+                        // Direction Indicator (Small line/triangle)
+                        this.mapGraphics.beginPath();
+                        const cx = px + TILE_SIZE / 2;
+                        const cy = py + TILE_SIZE / 2;
+                        const offset = TILE_SIZE / 4;
+
+                        this.mapGraphics.moveTo(cx, cy);
+                        if (tile === TileType.CONVEYOR_UP) this.mapGraphics.lineTo(cx, cy - offset);
+                        if (tile === TileType.CONVEYOR_DOWN) this.mapGraphics.lineTo(cx, cy + offset);
+                        if (tile === TileType.CONVEYOR_LEFT) this.mapGraphics.lineTo(cx - offset, cy);
+                        if (tile === TileType.CONVEYOR_RIGHT) this.mapGraphics.lineTo(cx + offset, cy);
+
+                        this.mapGraphics.stroke({ width: 2, color: 0xcccccc });
                     }
                 }
             }
@@ -116,15 +134,23 @@ export class GameRenderer {
         // Render entities
         for (let i = 0; i < MAX_ENTITIES; i++) {
             const id = frame.ids[i];
+            const type = frame.types[i];
             const sprite = this.sprites[i];
 
             if (id > 0) {
                 sprite.visible = true;
-                sprite.x = frame.pos[i * 2];
-                sprite.y = frame.pos[i * 2 + 1];
-                // Sim Y is usually Up? Pixi Y is Down.
-                // Assuming standard screen coords for now.
-                // sprite.rotation = frame.rot[i]... (need conversion 0-255 -> rads)
+                // Scale Sim Coords (Tiles) to Render Coords (Pixels)
+                sprite.x = frame.pos[i * 2] * TILE_SIZE;
+                sprite.y = frame.pos[i * 2 + 1] * TILE_SIZE;
+
+                // Color/Texture based on Type
+                if (type === EntityType.ITEM_COPPER) {
+                    sprite.tint = 0xffff00; // Yellow
+                    sprite.scale.set(0.5); // Smaller
+                } else {
+                    sprite.tint = 0xffffff;
+                    sprite.scale.set(1);
+                }
             } else {
                 sprite.visible = false;
             }

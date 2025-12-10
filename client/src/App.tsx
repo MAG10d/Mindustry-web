@@ -33,29 +33,76 @@ function App() {
     };
   }, []);
 
+  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM'>('WALL');
+  const [rotation, setRotation] = React.useState(0); // 0=Right, 1=Up, 2=Left, 3=Down
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'r') setRotation(r => (r + 1) % 4);
+      if (e.key === '1') setMode('WALL');
+      if (e.key === '2') setMode('CONVEYOR');
+      if (e.key === '3') setMode('ITEM');
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!workerRef.current) return;
 
-    // Assuming canvas is full screen and (0,0) is top-left
     const x = Math.floor(e.clientX / TILE_SIZE);
     const y = Math.floor(e.clientY / TILE_SIZE);
 
-    console.log(`Building Wall at (${x}, ${y})`);
+    if (mode === 'ITEM') {
+      console.log(`Spawning Item at (${x}, ${y})`);
+      workerRef.current.postMessage({
+        type: 'SPAWN_ITEM',
+        x: x + 0.5, // Center of tile
+        y: y + 0.5
+      });
+      return;
+    }
+
+    let block = TileType.EMPTY;
+    if (mode === 'WALL') block = TileType.WALL_COPPER;
+    if (mode === 'CONVEYOR') {
+        // Map rotation to TileType
+        // 0=Right -> CONVEYOR_RIGHT
+        // 1=Up -> CONVEYOR_UP
+        // 2=Left -> CONVEYOR_LEFT
+        // 3=Down -> CONVEYOR_DOWN
+        // Helper: CONVEYOR_UP=2, DOWN=3, LEFT=4, RIGHT=5
+        // My rotation logic: 0=Right.
+        // Let's explicitly map.
+        if (rotation === 0) block = TileType.CONVEYOR_RIGHT;
+        if (rotation === 1) block = TileType.CONVEYOR_UP;
+        if (rotation === 2) block = TileType.CONVEYOR_LEFT;
+        if (rotation === 3) block = TileType.CONVEYOR_DOWN;
+    }
+
+    console.log(`Building ${TileType[block]} at (${x}, ${y})`);
 
     workerRef.current.postMessage({
       type: 'BUILD',
       x,
       y,
-      block: TileType.WALL_COPPER
+      block
     });
   };
 
   return (
     <div className="pointer-events-auto w-full h-full" onMouseDown={handleMouseDown}>
-      <div className="pointer-events-none p-4 text-white absolute top-0 left-0">
+      <div className="pointer-events-none p-4 text-white absolute top-0 left-0 bg-black/50">
         <h1 className="text-2xl font-bold">Mindustry Web Engine</h1>
-        <p>UI Overlay</p>
-        <p className="text-sm text-gray-400">Click to build Wall</p>
+        <div className="mt-2 text-sm">
+            <p>Mode: <span className="font-bold text-yellow-400">{mode}</span></p>
+            {mode === 'CONVEYOR' && <p>Rotation: {['Right', 'Up', 'Left', 'Down'][rotation]}</p>}
+            <div className="mt-2 flex gap-2">
+                <span className="bg-gray-700 px-2 rounded">[1] Wall</span>
+                <span className="bg-gray-700 px-2 rounded">[2] Conveyor (R to rotate)</span>
+                <span className="bg-gray-700 px-2 rounded">[3] Spawn Item</span>
+            </div>
+        </div>
       </div>
     </div>
   );

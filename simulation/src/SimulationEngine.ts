@@ -1,5 +1,6 @@
 import { SharedMemoryManager } from './memory/SharedMemoryManager.js';
-import { TICK_RATE, MAP_WIDTH, MAP_HEIGHT, TileType } from '@mindustry/shared';
+import { TICK_RATE, MAP_WIDTH, MAP_HEIGHT, TileType, EntityType, MAX_ENTITIES } from '@mindustry/shared';
+import { updateConveyors } from './systems/ConveyorSystem.js';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
@@ -43,20 +44,38 @@ export class SimulationEngine {
         // Process Commands
         while (this.commandQueue.length > 0) {
             const cmd = this.commandQueue.shift();
+
             if (cmd.type === 'BUILD') {
                 const { x, y, block } = cmd;
                 if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
                     const idx = y * MAP_WIDTH + x;
                     this.masterMap[idx] = block;
                     console.log(`[Sim] Built block ${block} at (${x}, ${y})`);
-
-                    // Spawn Static Entity for Visual/Collision if needed
-                    // For now, map update is enough for visual if renderer reads map.
+                }
+            } else if (cmd.type === 'SPAWN_ITEM') {
+                const { x, y } = cmd;
+                // Find free entity ID
+                // Note: Linear scan is slow for 10k entities, but fine for prototype spawn
+                // We should use an allocator or a free list.
+                // For now, scan from 100 (reserved for units?)
+                const buffer = this.memory.writeFrame;
+                for (let i = 10; i < MAX_ENTITIES; i++) {
+                    if (buffer.ids[i] === 0) {
+                        buffer.ids[i] = i;
+                        buffer.types[i] = EntityType.ITEM_COPPER;
+                        buffer.pos[i * 2] = x;
+                        buffer.pos[i * 2 + 1] = y;
+                        console.log(`[Sim] Spawned Item ${i} at (${x}, ${y})`);
+                        break;
+                    }
                 }
             }
         }
 
         const buffer = this.memory.writeFrame;
+
+        // Run Systems
+        updateConveyors(buffer, this.masterMap);
 
         // Copy Master Map to Current Buffer
         buffer.map.set(this.masterMap);

@@ -36,7 +36,7 @@ function App() {
     };
   }, []);
 
-  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE'>('WALL');
+  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE' | 'TURRET'>('WALL');
   const [rotation, setRotation] = React.useState(0); // 0=Right, 1=Up, 2=Left, 3=Down
 
   useEffect(() => {
@@ -47,6 +47,7 @@ function App() {
       if (e.key === '3') setMode('ITEM');
       if (e.key === '4') setMode('DRILL');
       if (e.key === '5') setMode('CORE');
+      if (e.key === '6') setMode('TURRET');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -72,6 +73,7 @@ function App() {
     if (mode === 'WALL') block = TileType.WALL_COPPER;
     if (mode === 'DRILL') block = TileType.DRILL_MECHANICAL;
     if (mode === 'CORE') block = TileType.CORE_SHARD;
+    if (mode === 'TURRET') block = TileType.TURRET_DUO;
     if (mode === 'CONVEYOR') {
         // Map rotation to TileType
         // 0=Right -> CONVEYOR_RIGHT
@@ -104,12 +106,19 @@ function App() {
         <div className="mt-2 text-sm">
             <p>Mode: <span className="font-bold text-yellow-400">{mode}</span></p>
             {mode === 'CONVEYOR' && <p>Rotation: {['Right', 'Up', 'Left', 'Down'][rotation]}</p>}
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex gap-2 flex-wrap">
                 <span className="bg-gray-700 px-2 rounded">[1] Wall</span>
-                <span className="bg-gray-700 px-2 rounded">[2] Conveyor (R to rotate)</span>
-                <span className="bg-gray-700 px-2 rounded">[3] Spawn Item</span>
+                <span className="bg-gray-700 px-2 rounded">[2] Conveyor (R)</span>
+                <span className="bg-gray-700 px-2 rounded">[3] Item</span>
                 <span className="bg-gray-700 px-2 rounded">[4] Drill</span>
                 <span className="bg-gray-700 px-2 rounded">[5] Core</span>
+                <span className="bg-gray-700 px-2 rounded">[6] Turret</span>
+                <button
+                    className="bg-red-700 px-2 rounded pointer-events-auto"
+                    onClick={() => workerRef.current?.postMessage({ type: 'SPAWN_ENEMY', x: 0, y: 0 })}
+                >
+                    Spawn Enemy
+                </button>
             </div>
         </div>
       </div>

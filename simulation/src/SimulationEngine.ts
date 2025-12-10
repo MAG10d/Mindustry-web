@@ -3,6 +3,9 @@ import { TICK_RATE, MAP_WIDTH, MAP_HEIGHT, TileType, EntityType, MAX_ENTITIES } 
 import { updateConveyors } from './systems/ConveyorSystem.js';
 import { ProductionSystem } from './systems/ProductionSystem.js';
 import { updateInventory } from './systems/InventorySystem.js';
+import { UnitSystem } from './systems/UnitSystem.js';
+import { ProjectileSystem } from './systems/ProjectileSystem.js';
+import { TurretSystem } from './systems/TurretSystem.js';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
@@ -10,12 +13,18 @@ export class SimulationEngine {
     private masterMap: Uint16Array;
     private commandQueue: any[] = [];
     private productionSystem: ProductionSystem;
+    private unitSystem: UnitSystem;
+    private projectileSystem: ProjectileSystem;
+    private turretSystem: TurretSystem;
 
     constructor() {
         console.log("Simulation Engine Initializing...");
         this.memory = new SharedMemoryManager();
         this.masterMap = new Uint16Array(MAP_WIDTH * MAP_HEIGHT);
         this.productionSystem = new ProductionSystem();
+        this.unitSystem = new UnitSystem();
+        this.projectileSystem = new ProjectileSystem();
+        this.turretSystem = new TurretSystem(this.projectileSystem);
         this.initializeWorld();
     }
 
@@ -73,6 +82,19 @@ export class SimulationEngine {
                         break;
                     }
                 }
+            } else if (cmd.type === 'SPAWN_ENEMY') {
+                const { x, y } = cmd;
+                const buffer = this.memory.writeFrame;
+                for (let i = 100; i < MAX_ENTITIES; i++) {
+                    if (buffer.ids[i] === 0) {
+                        buffer.ids[i] = i;
+                        buffer.types[i] = EntityType.UNIT_FLARE;
+                        buffer.pos[i * 2] = x;
+                        buffer.pos[i * 2 + 1] = y;
+                        console.log(`[Sim] Spawned Enemy ${i} at (${x}, ${y})`);
+                        break;
+                    }
+                }
             }
         }
 
@@ -82,6 +104,9 @@ export class SimulationEngine {
         this.productionSystem.update(this.masterMap, buffer);
         updateConveyors(buffer, this.masterMap);
         updateInventory(buffer, this.masterMap, this.memory.header);
+        this.unitSystem.update(buffer, this.masterMap);
+        this.turretSystem.update(this.masterMap, buffer);
+        this.projectileSystem.update(buffer);
 
         // Copy Master Map to Current Buffer
         buffer.map.set(this.masterMap);

@@ -138,6 +138,16 @@ export class GameRenderer {
                         this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
                         this.mapGraphics.fill(0xff5555); // Red
                         this.mapGraphics.stroke({ width: 1, color: 0xffffff });
+                    } else if (tile === TileType.TURRET_DUO) {
+                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
+                        this.mapGraphics.fill(0x888888); // Gray Base
+                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
+
+                        // Gun (Simplified visual: just a line pointing somewhat)
+                        // In reality, we'd need rotation data. For now, static or point to mouse?
+                        // Let's just draw a circle for "Duo".
+                        this.mapGraphics.circle(px + TILE_SIZE/2, py + TILE_SIZE/2, 2);
+                        this.mapGraphics.fill(0xffaa00);
                     }
                 }
             }
@@ -159,6 +169,12 @@ export class GameRenderer {
                 if (type === EntityType.ITEM_COPPER) {
                     sprite.tint = 0xffff00; // Yellow
                     sprite.scale.set(0.5); // Smaller
+                } else if (type === EntityType.UNIT_FLARE) {
+                    sprite.tint = 0xff0000; // Red Unit
+                    sprite.scale.set(0.8);
+                } else if (type === EntityType.PROJECTILE_STANDARD) {
+                    sprite.tint = 0xffffaa; // Light Yellow Projectile
+                    sprite.scale.set(0.3);
                 } else {
                     sprite.tint = 0xffffff;
                     sprite.scale.set(1);

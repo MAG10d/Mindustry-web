@@ -10,13 +10,16 @@ export enum TileType {
     CONVEYOR_LEFT = 4,
     CONVEYOR_RIGHT = 5,
     DRILL_MECHANICAL = 6,
-    CORE_SHARD = 7
+    CORE_SHARD = 7,
+    TURRET_DUO = 8
 }
 
 export enum EntityType {
     NONE = 0,
     UNIT = 1,
-    ITEM_COPPER = 2
+    ITEM_COPPER = 2,
+    UNIT_FLARE = 3,
+    PROJECTILE_STANDARD = 4
 }
 
 // Entity SoA Sizes (in Bytes)

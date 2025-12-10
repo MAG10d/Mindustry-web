@@ -7,6 +7,7 @@ import { UnitSystem } from './systems/UnitSystem.js';
 import { ProjectileSystem } from './systems/ProjectileSystem.js';
 import { TurretSystem } from './systems/TurretSystem.js';
 import { PowerSystem } from './systems/PowerSystem.js';
+import { SaveManager } from './io/SaveManager.js';
 
 export class SimulationEngine {
     private memory: SharedMemoryManager;
@@ -99,6 +100,27 @@ export class SimulationEngine {
                         break;
                     }
                 }
+            } else if (cmd.type === 'SAVE') {
+                const buffer = this.memory.writeFrame;
+                const data = SaveManager.exportState(this.masterMap, buffer);
+                // Post back to main thread via self.postMessage (global in worker)
+                // But this class doesn't reference self directly.
+                // We should expose a callback or event.
+                // Assuming we can use postMessage here or return it?
+                // The worker wrapper handles messages TO engine.
+                // Engine needs to send message FROM worker.
+
+                // Hack: Use global scope for now, or cleaner: emit event.
+                // Let's use postMessage directly since we know we are in a worker environment (or emulated).
+                if (typeof postMessage === 'function') {
+                    postMessage({ type: 'SAVE_DATA', data });
+                }
+            } else if (cmd.type === 'LOAD') {
+                const { data } = cmd;
+                const buffer = this.memory.writeFrame;
+                SaveManager.importState(this.masterMap, buffer, data);
+                this.powerSystem.triggerRebuild();
+                console.log("[Sim] Game Loaded");
             }
         }
 

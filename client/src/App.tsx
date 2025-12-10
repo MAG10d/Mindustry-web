@@ -25,6 +25,14 @@ function App() {
         if (canvas) {
           rendererRef.current = new GameRenderer(canvas, buf);
         }
+      } else if (e.data.type === 'SAVE_DATA') {
+          const blob = new Blob([JSON.stringify(e.data.data)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'mindustry-save.json';
+          a.click();
+          URL.revokeObjectURL(url);
       }
     };
 
@@ -127,6 +135,36 @@ function App() {
                 >
                     Spawn Enemy
                 </button>
+                <div className="flex gap-2 ml-4">
+                    <button
+                        className="bg-blue-600 px-2 rounded pointer-events-auto"
+                        onClick={() => workerRef.current?.postMessage({ type: 'SAVE' })}
+                    >
+                        Save
+                    </button>
+                    <label className="bg-blue-600 px-2 rounded pointer-events-auto cursor-pointer">
+                        Load
+                        <input
+                            type="file"
+                            className="hidden"
+                            accept=".json"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                        const text = ev.target?.result as string;
+                                        if (text) {
+                                            const data = JSON.parse(text);
+                                            workerRef.current?.postMessage({ type: 'LOAD', data });
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }
+                            }}
+                        />
+                    </label>
+                </div>
             </div>
         </div>
       </div>

@@ -22,6 +22,10 @@ export class SimulationEngine {
         console.log("World Initialized. Dummy Entity at (0,0)");
     }
 
+    get buffer() {
+        return this.memory.sharedBuffer;
+    }
+
     start() {
         const msPerTick = 1000 / TICK_RATE;
         this.interval = setInterval(() => this.tick(), msPerTick);
@@ -42,6 +46,8 @@ export class SimulationEngine {
         // Let's rely on a persistent local state for the dummy entity to ensure continuity.
         this.dummyX = (this.dummyX || 0) + 1;
 
+        buffer.ids[0] = 1; // Ensure ID is set in current buffer
+        buffer.types[0] = 1;
         buffer.pos[0] = this.dummyX;
         buffer.pos[1] = 0;
 

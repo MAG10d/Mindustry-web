@@ -42,6 +42,10 @@ export class SharedMemoryManager {
         }
     }
 
+    get sharedBuffer() {
+        return this.buffer;
+    }
+
     get writeFrame() {
         return this.frames[this.writeIndex];
     }

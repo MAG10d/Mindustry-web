@@ -17,7 +17,8 @@ const SPRITES = {
     'power-node.png': { path: 'blocks/power/power-node.png', color: 'eec456', text: 'Pow' },
     'battery.png': { path: 'blocks/power/battery.png', color: 'a2c644', text: 'Bat' },
     'item-copper.png': { path: 'items/item-copper.png', color: 'd99d73', text: 'Cu' },
-    'copper.png': { path: 'items/item-copper.png', color: 'd99d73', text: 'Cu' }
+    'copper.png': { path: 'items/item-copper.png', color: 'd99d73', text: 'Cu' },
+    'flare.png': { path: 'units/flare.png', color: 'eec456', text: 'Unit' }
 };
 
 async function fetchAssets() {

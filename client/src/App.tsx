@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { GameRenderer } from './renderer/GameRenderer';
 import { TILE_SIZE, TileType } from '@mindustry/shared';
 import { ResourcesDisplay } from './components/ui/ResourcesDisplay';
+import { BuildMenu } from './components/ui/BuildMenu';
 
 function App() {
   const rendererRef = useRef<GameRenderer | null>(null);
@@ -44,59 +45,41 @@ function App() {
     };
   }, []);
 
-  const [mode, setMode] = React.useState<'WALL' | 'CONVEYOR' | 'ITEM' | 'DRILL' | 'CORE' | 'TURRET' | 'SOLAR' | 'NODE' | 'BATTERY'>('WALL');
+  const [selectedType, setSelectedType] = React.useState<TileType>(TileType.WALL_COPPER);
   const [rotation, setRotation] = React.useState(0); // 0=Right, 1=Up, 2=Left, 3=Down
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'r') setRotation(r => (r + 1) % 4);
-      if (e.key === '1') setMode('WALL');
-      if (e.key === '2') setMode('CONVEYOR');
-      if (e.key === '3') setMode('ITEM');
-      if (e.key === '4') setMode('DRILL');
-      if (e.key === '5') setMode('CORE');
-      if (e.key === '6') setMode('TURRET');
-      if (e.key === '7') setMode('SOLAR');
-      if (e.key === '8') setMode('NODE');
-      if (e.key === '9') setMode('BATTERY');
+      // Keep number keys as shortcuts
+      if (e.key === '1') setSelectedType(TileType.WALL_COPPER);
+      if (e.key === '2') setSelectedType(TileType.CONVEYOR_RIGHT); // Base conveyor
+      if (e.key === '3') console.log('Item Mode removed from UI, use debug commands if needed');
+      if (e.key === '4') setSelectedType(TileType.DRILL_MECHANICAL);
+      if (e.key === '5') setSelectedType(TileType.CORE_SHARD);
+      if (e.key === '6') setSelectedType(TileType.TURRET_DUO);
+      if (e.key === '7') setSelectedType(TileType.SOLAR_PANEL);
+      if (e.key === '8') setSelectedType(TileType.POWER_NODE);
+      if (e.key === '9') setSelectedType(TileType.BATTERY);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!workerRef.current) return;
+    if (!workerRef.current || !buffer) return;
+
+    // Prevent building if clicking on UI
+    if ((e.target as HTMLElement).tagName !== 'CANVAS') return;
 
     const x = Math.floor(e.clientX / TILE_SIZE);
     const y = Math.floor(e.clientY / TILE_SIZE);
 
-    if (mode === 'ITEM') {
-      console.log(`Spawning Item at (${x}, ${y})`);
-      workerRef.current.postMessage({
-        type: 'SPAWN_ITEM',
-        x: x + 0.5, // Center of tile
-        y: y + 0.5
-      });
-      return;
-    }
+    let block = selectedType;
 
-    let block = TileType.EMPTY;
-    if (mode === 'WALL') block = TileType.WALL_COPPER;
-    if (mode === 'DRILL') block = TileType.DRILL_MECHANICAL;
-    if (mode === 'CORE') block = TileType.CORE_SHARD;
-    if (mode === 'TURRET') block = TileType.TURRET_DUO;
-    if (mode === 'SOLAR') block = TileType.SOLAR_PANEL;
-    if (mode === 'NODE') block = TileType.POWER_NODE;
-    if (mode === 'BATTERY') block = TileType.BATTERY;
-    if (mode === 'CONVEYOR') {
-        // Map rotation to TileType
-        // 0=Right -> CONVEYOR_RIGHT
-        // 1=Up -> CONVEYOR_UP
-        // 2=Left -> CONVEYOR_LEFT
-        // 3=Down -> CONVEYOR_DOWN
-        // Helper: CONVEYOR_UP=2, DOWN=3, LEFT=4, RIGHT=5
-        // My rotation logic: 0=Right.
-        // Let's explicitly map.
+    // Handle Rotation for Conveyors
+    if (block === TileType.CONVEYOR_RIGHT || block === TileType.CONVEYOR_UP ||
+        block === TileType.CONVEYOR_LEFT || block === TileType.CONVEYOR_DOWN) {
         if (rotation === 0) block = TileType.CONVEYOR_RIGHT;
         if (rotation === 1) block = TileType.CONVEYOR_UP;
         if (rotation === 2) block = TileType.CONVEYOR_LEFT;
@@ -114,61 +97,74 @@ function App() {
   };
 
   return (
-    <div className="pointer-events-auto w-full h-full" onMouseDown={handleMouseDown}>
-      <div className="pointer-events-none p-4 text-white absolute top-0 left-0 bg-black/50">
-        <h1 className="text-2xl font-bold">Mindustry Web Engine</h1>
-        <div className="mt-2 text-sm">
-            <p>Mode: <span className="font-bold text-yellow-400">{mode}</span></p>
-            {mode === 'CONVEYOR' && <p>Rotation: {['Right', 'Up', 'Left', 'Down'][rotation]}</p>}
-            <div className="mt-2 flex gap-2 flex-wrap">
-                <span className="bg-gray-700 px-2 rounded">[1] Wall</span>
-                <span className="bg-gray-700 px-2 rounded">[2] Conveyor (R)</span>
-                <span className="bg-gray-700 px-2 rounded">[3] Item</span>
-                <span className="bg-gray-700 px-2 rounded">[4] Drill</span>
-                <span className="bg-gray-700 px-2 rounded">[5] Core</span>
-                <span className="bg-gray-700 px-2 rounded">[6] Turret</span>
-                <span className="bg-gray-700 px-2 rounded">[7] Solar</span>
-                <span className="bg-gray-700 px-2 rounded">[8] Node</span>
-                <button
-                    className="bg-red-700 px-2 rounded pointer-events-auto"
-                    onClick={() => workerRef.current?.postMessage({ type: 'SPAWN_ENEMY', x: 0, y: 0 })}
-                >
-                    Spawn Enemy
-                </button>
-                <div className="flex gap-2 ml-4">
-                    <button
-                        className="bg-blue-600 px-2 rounded pointer-events-auto"
-                        onClick={() => workerRef.current?.postMessage({ type: 'SAVE' })}
-                    >
-                        Save
-                    </button>
-                    <label className="bg-blue-600 px-2 rounded pointer-events-auto cursor-pointer">
-                        Load
-                        <input
-                            type="file"
-                            className="hidden"
-                            accept=".json"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                        const text = ev.target?.result as string;
-                                        if (text) {
-                                            const data = JSON.parse(text);
-                                            workerRef.current?.postMessage({ type: 'LOAD', data });
-                                        }
-                                    };
-                                    reader.readAsText(file);
-                                }
-                            }}
-                        />
-                    </label>
-                </div>
-            </div>
-        </div>
+    <div className="w-full h-full relative bg-gray-900" onMouseDown={handleMouseDown}>
+      <canvas id="pixi-canvas" className="block w-full h-full" />
+
+      {/* Top Bar */}
+      <div className="absolute top-0 left-0 w-full p-2 flex justify-between items-start pointer-events-none">
+          <div className="pointer-events-auto">
+             <ResourcesDisplay buffer={buffer} />
+          </div>
+
+          <div className="flex gap-2 pointer-events-auto bg-black/50 p-2 rounded backdrop-blur-sm">
+              <button
+                  className="bg-red-700/80 hover:bg-red-600 px-3 py-1 rounded text-white text-xs font-bold transition-colors"
+                  onClick={() => workerRef.current?.postMessage({ type: 'SPAWN_ENEMY', x: 0, y: 0 })}
+              >
+                  Spawn Enemy
+              </button>
+              <button
+                  className="bg-blue-600/80 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold transition-colors"
+                  onClick={() => workerRef.current?.postMessage({ type: 'SAVE' })}
+              >
+                  Save
+              </button>
+              <label className="bg-blue-600/80 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold cursor-pointer transition-colors">
+                  Load
+                  <input
+                      type="file"
+                      className="hidden"
+                      accept=".json"
+                      onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                  const text = ev.target?.result as string;
+                                  if (text) {
+                                      const data = JSON.parse(text);
+                                      workerRef.current?.postMessage({ type: 'LOAD', data });
+                                  }
+                              };
+                              reader.readAsText(file);
+                          }
+                      }}
+                  />
+              </label>
+          </div>
       </div>
-      <ResourcesDisplay buffer={buffer} />
+
+      {/* Rotation Indicator (Bottom Right) */}
+      <div className="absolute bottom-20 right-4 text-white text-xs bg-black/50 px-2 py-1 rounded pointer-events-none">
+        Rotation: <span className="font-bold text-yellow-400">{['Right', 'Up', 'Left', 'Down'][rotation]} [R]</span>
+      </div>
+
+      {/* Bottom Build Menu */}
+      <div className="absolute bottom-0 left-0 w-full flex justify-center pb-4 pointer-events-none">
+          <div className="pointer-events-auto">
+             <BuildMenu
+                onSelect={(type) => {
+                    // Reset to base types if conveyor selected, rotation handled in click
+                    if (type >= TileType.CONVEYOR_UP && type <= TileType.CONVEYOR_RIGHT) {
+                         setSelectedType(TileType.CONVEYOR_RIGHT);
+                    } else {
+                         setSelectedType(type);
+                    }
+                }}
+                selectedType={selectedType}
+             />
+          </div>
+      </div>
     </div>
   );
 }

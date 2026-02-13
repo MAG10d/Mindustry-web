@@ -1,4 +1,4 @@
-import { Application, Assets, Sprite, Container, Graphics } from 'pixi.js';
+import { Application, Assets, Sprite, Container, Graphics, Texture } from 'pixi.js';
 import {
     HEADER_SIZE, FRAME_SIZE, MAX_ENTITIES,
     OFFSET_IDS, OFFSET_TYPES, OFFSET_POS, OFFSET_ROT, OFFSET_MAP,
@@ -21,9 +21,14 @@ export class GameRenderer {
         mapState: Uint8Array;
     }[];
 
-    private sprites: Sprite[];
+    private entitySprites: Sprite[];
+    private mapSprites: (Sprite | null)[];
     private container: Container;
-    private mapGraphics: Graphics;
+    private mapLayer: Container;
+    private entityLayer: Container;
+    private mapGraphics: Graphics; // For floor and connections
+
+    private textures: Record<string, Texture> = {};
 
     constructor(canvas: HTMLCanvasElement, buffer: SharedArrayBuffer) {
         this.buffer = buffer;
@@ -44,9 +49,17 @@ export class GameRenderer {
         }
 
         this.app = new Application();
-        this.sprites = [];
+        this.entitySprites = [];
+        this.mapSprites = new Array(MAP_WIDTH * MAP_HEIGHT).fill(null);
+
         this.container = new Container();
+        this.mapLayer = new Container();
+        this.entityLayer = new Container();
         this.mapGraphics = new Graphics();
+
+        this.container.addChild(this.mapGraphics);
+        this.container.addChild(this.mapLayer);
+        this.container.addChild(this.entityLayer);
 
         this.init(canvas);
     }
@@ -61,19 +74,39 @@ export class GameRenderer {
             autoDensity: true,
         });
 
-        this.app.stage.addChild(this.mapGraphics);
         this.app.stage.addChild(this.container);
 
-        // Load Asset
-        const texture = await Assets.load('/assets/sprites/duo.png'); // Placeholder or real
+        // Load Assets
+        const assetMap = {
+            'copper-wall': '/assets/sprites/copper-wall.png',
+            'duo': '/assets/sprites/duo.png',
+            'conveyor': '/assets/sprites/conveyor-0-0.png',
+            'router': '/assets/sprites/router.png',
+            'drill': '/assets/sprites/mechanical-drill.png',
+            'core': '/assets/sprites/core-shard.png',
+            'junction': '/assets/sprites/junction.png',
+            'sorter': '/assets/sprites/sorter.png',
+            'power-node': '/assets/sprites/power-node.png',
+            'battery': '/assets/sprites/battery.png',
+            'item-copper': '/assets/sprites/item-copper.png',
+            'flare': '/assets/sprites/flare.png'
+        };
 
-        // Create Sprite Pool
+        for (const [key, path] of Object.entries(assetMap)) {
+            try {
+                this.textures[key] = await Assets.load(path);
+            } catch (e) {
+                console.error(`Failed to load asset ${key}:`, e);
+            }
+        }
+
+        // Create Entity Sprite Pool
         for (let i = 0; i < MAX_ENTITIES; i++) {
-            const sprite = new Sprite(texture);
+            const sprite = new Sprite(Texture.EMPTY); // Initialize with empty
             sprite.anchor.set(0.5);
             sprite.visible = false;
-            this.container.addChild(sprite);
-            this.sprites.push(sprite);
+            this.entityLayer.addChild(sprite);
+            this.entitySprites.push(sprite);
         }
 
         this.app.ticker.add(this.update.bind(this));
@@ -85,168 +118,168 @@ export class GameRenderer {
     }
 
     update() {
-        // Read latest committed frame from Simulation
-        // Note: In real logic we'd smooth between frames.
-        // For "Basic Rendering", we just snap to the latest frame.
-
         const simIdx = Atomics.load(this.header, HDR_SIM_IDX);
-
-        // Signal that we are reading this frame
         Atomics.store(this.header, HDR_RENDER_IDX, simIdx);
-
         const frame = this.frames[simIdx];
 
-        // Render Map
+        // 1. Render Background & Connections (Graphics)
         this.mapGraphics.clear();
-
-        // Draw Grid Floor (Gray)
+        // Draw Grid Floor (Dark Gray)
         this.mapGraphics.rect(0, 0, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
         this.mapGraphics.fill(0x222222);
 
-        // Draw Power Lines first (Background)
+        // Draw Power Lines
         this.mapGraphics.beginPath();
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
                 const idx = y * MAP_WIDTH + x;
                 if (frame.map[idx] === TileType.POWER_NODE) {
-                    // Connect to nearby nodes/power blocks
-                    // Simple logic: Scan range, draw line if power block.
-                    // To avoid double drawing, only draw to right/down? Or just draw all.
-                    const px = x * TILE_SIZE + TILE_SIZE/2;
-                    const py = y * TILE_SIZE + TILE_SIZE/2;
+                     const px = x * TILE_SIZE + TILE_SIZE/2;
+                     const py = y * TILE_SIZE + TILE_SIZE/2;
+                     const range = POWER_RANGE;
+                     const minX = Math.max(0, x - range);
+                     const maxX = Math.min(MAP_WIDTH - 1, x + range);
+                     const minY = Math.max(0, y - range);
+                     const maxY = Math.min(MAP_HEIGHT - 1, y + range);
 
-                    // Small scan range for visuals
-                    const range = POWER_RANGE;
-                    const minX = Math.max(0, x - range);
-                    const maxX = Math.min(MAP_WIDTH - 1, x + range);
-                    const minY = Math.max(0, y - range);
-                    const maxY = Math.min(MAP_HEIGHT - 1, y + range);
-
-                    for (let ny = minY; ny <= maxY; ny++) {
-                        for (let nx = minX; nx <= maxX; nx++) {
-                            if (nx === x && ny === y) continue;
-                            const nIdx = ny * MAP_WIDTH + nx;
-                            const nTile = frame.map[nIdx];
-
-                            if (nTile === TileType.POWER_NODE || nTile === TileType.SOLAR_PANEL ||
-                                nTile === TileType.BATTERY || nTile === TileType.DRILL_MECHANICAL ||
-                                nTile === TileType.TURRET_DUO) {
-
-                                const distSq = (nx-x)*(nx-x) + (ny-y)*(ny-y);
-                                if (distSq <= range * range) {
-                                    // Draw Line
-                                    const npx = nx * TILE_SIZE + TILE_SIZE/2;
-                                    const npy = ny * TILE_SIZE + TILE_SIZE/2;
-
-                                    this.mapGraphics.moveTo(px, py);
-                                    this.mapGraphics.lineTo(npx, npy);
-                                }
-                            }
-                        }
-                    }
+                     for (let ny = minY; ny <= maxY; ny++) {
+                         for (let nx = minX; nx <= maxX; nx++) {
+                             if (nx === x && ny === y) continue;
+                             const nIdx = ny * MAP_WIDTH + nx;
+                             const nTile = frame.map[nIdx];
+                             if (nTile === TileType.POWER_NODE || nTile === TileType.SOLAR_PANEL ||
+                                 nTile === TileType.BATTERY || nTile === TileType.DRILL_MECHANICAL ||
+                                 nTile === TileType.TURRET_DUO) {
+                                 const distSq = (nx-x)*(nx-x) + (ny-y)*(ny-y);
+                                 if (distSq <= range * range) {
+                                     const npx = nx * TILE_SIZE + TILE_SIZE/2;
+                                     const npy = ny * TILE_SIZE + TILE_SIZE/2;
+                                     this.mapGraphics.moveTo(px, py);
+                                     this.mapGraphics.lineTo(npx, npy);
+                                 }
+                             }
+                         }
+                     }
                 }
             }
         }
-        this.mapGraphics.stroke({ width: 1, color: 0xffff00, alpha: 0.3 }); // Faint yellow lines
+        this.mapGraphics.stroke({ width: 1, color: 0xffff00, alpha: 0.3 });
 
-        // Draw Walls
+        // 2. Render Map Tiles (Sprites)
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
                 const idx = y * MAP_WIDTH + x;
                 const tile = frame.map[idx];
-                const efficiency = frame.mapState[idx] / 100.0;
 
-                if (tile !== TileType.EMPTY) {
-                    const px = x * TILE_SIZE;
-                    const py = y * TILE_SIZE;
+                let sprite = this.mapSprites[idx];
 
-                    if (tile === TileType.WALL_COPPER) {
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(0xd99d73); // Copper color
-                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
-                    } else if (tile >= TileType.CONVEYOR_UP && tile <= TileType.CONVEYOR_RIGHT) {
-                        // Conveyor Base
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(0x555555); // Dark Gray
-
-                        // Direction Indicator (Small line/triangle)
-                        this.mapGraphics.beginPath();
-                        const cx = px + TILE_SIZE / 2;
-                        const cy = py + TILE_SIZE / 2;
-                        const offset = TILE_SIZE / 4;
-
-                        this.mapGraphics.moveTo(cx, cy);
-                        if (tile === TileType.CONVEYOR_UP) this.mapGraphics.lineTo(cx, cy - offset);
-                        if (tile === TileType.CONVEYOR_DOWN) this.mapGraphics.lineTo(cx, cy + offset);
-                        if (tile === TileType.CONVEYOR_LEFT) this.mapGraphics.lineTo(cx - offset, cy);
-                        if (tile === TileType.CONVEYOR_RIGHT) this.mapGraphics.lineTo(cx + offset, cy);
-
-                        this.mapGraphics.stroke({ width: 2, color: 0xcccccc });
-                    } else if (tile === TileType.DRILL_MECHANICAL) {
-                        // Tint darker if no power
-                        const color = efficiency > 0.1 ? 0x88ff88 : 0x448844;
-
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(color);
-                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
-
-                        // Drill details
-                        this.mapGraphics.rect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-                        this.mapGraphics.fill(0x55aa55);
-                    } else if (tile === TileType.CORE_SHARD) {
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(0xff5555); // Red
-                        this.mapGraphics.stroke({ width: 1, color: 0xffffff });
-                    } else if (tile === TileType.TURRET_DUO) {
-                        const color = efficiency > 0.1 ? 0x888888 : 0x444444;
-
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(color);
-                        this.mapGraphics.stroke({ width: 1, color: 0x000000 });
-
-                        this.mapGraphics.circle(px + TILE_SIZE/2, py + TILE_SIZE/2, 2);
-                        this.mapGraphics.fill(0xffaa00);
-                    } else if (tile === TileType.SOLAR_PANEL) {
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(0x4444ff); // Blue
-                        this.mapGraphics.stroke({ width: 1, color: 0x8888ff });
-                    } else if (tile === TileType.BATTERY) {
-                        this.mapGraphics.rect(px, py, TILE_SIZE, TILE_SIZE);
-                        this.mapGraphics.fill(0x44aa44); // Dark Green
-                        this.mapGraphics.stroke({ width: 1, color: 0x88ff88 });
-                    } else if (tile === TileType.POWER_NODE) {
-                        this.mapGraphics.rect(px + 2, py + 2, 4, 4);
-                        this.mapGraphics.fill(0xffff00); // Yellow
+                if (tile === TileType.EMPTY) {
+                    if (sprite) {
+                        sprite.visible = false;
                     }
+                    continue;
+                }
+
+                if (!sprite) {
+                    sprite = new Sprite();
+                    sprite.anchor.set(0.5); // Center anchor for rotation
+                    sprite.width = TILE_SIZE;
+                    sprite.height = TILE_SIZE;
+                    sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
+                    sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
+                    this.mapLayer.addChild(sprite);
+                    this.mapSprites[idx] = sprite;
+                }
+
+                sprite.visible = true;
+                sprite.rotation = 0; // Reset rotation
+                sprite.tint = 0xffffff; // Reset tint
+
+                // Map TileType to Texture
+                switch (tile) {
+                    case TileType.WALL_COPPER:
+                        sprite.texture = this.textures['copper-wall'] || Texture.WHITE;
+                        break;
+                    case TileType.CONVEYOR_UP:
+                        sprite.texture = this.textures['conveyor'] || Texture.WHITE;
+                        sprite.rotation = -Math.PI / 2;
+                        break;
+                    case TileType.CONVEYOR_DOWN:
+                        sprite.texture = this.textures['conveyor'] || Texture.WHITE;
+                        sprite.rotation = Math.PI / 2;
+                        break;
+                    case TileType.CONVEYOR_LEFT:
+                        sprite.texture = this.textures['conveyor'] || Texture.WHITE;
+                        sprite.rotation = Math.PI;
+                        break;
+                    case TileType.CONVEYOR_RIGHT:
+                        sprite.texture = this.textures['conveyor'] || Texture.WHITE;
+                        break;
+                    case TileType.DRILL_MECHANICAL:
+                        sprite.texture = this.textures['drill'] || Texture.WHITE;
+                        break;
+                    case TileType.CORE_SHARD:
+                        sprite.texture = this.textures['core'] || Texture.WHITE;
+                        break;
+                    case TileType.TURRET_DUO:
+                        sprite.texture = this.textures['duo'] || Texture.WHITE;
+                        break;
+                    case TileType.SOLAR_PANEL:
+                        // No sprite fetched for solar panel, use fallback
+                         sprite.texture = Texture.WHITE;
+                         sprite.tint = 0x4444ff;
+                        break;
+                    case TileType.BATTERY:
+                        sprite.texture = this.textures['battery'] || Texture.WHITE;
+                        break;
+                    case TileType.POWER_NODE:
+                         sprite.texture = this.textures['power-node'] || Texture.WHITE;
+                        break;
+                    default:
+                        sprite.visible = false;
+                        break;
                 }
             }
         }
 
-        // Render entities
+        // 3. Render Entities (Sprites)
         for (let i = 0; i < MAX_ENTITIES; i++) {
             const id = frame.ids[i];
             const type = frame.types[i];
-            const sprite = this.sprites[i];
+            const sprite = this.entitySprites[i];
 
             if (id > 0) {
                 sprite.visible = true;
-                // Scale Sim Coords (Tiles) to Render Coords (Pixels)
                 sprite.x = frame.pos[i * 2] * TILE_SIZE;
                 sprite.y = frame.pos[i * 2 + 1] * TILE_SIZE;
+                sprite.rotation = 0;
+                sprite.tint = 0xffffff;
+                sprite.scale.set(1);
 
-                // Color/Texture based on Type
-                if (type === EntityType.ITEM_COPPER) {
-                    sprite.tint = 0xffff00; // Yellow
-                    sprite.scale.set(0.5); // Smaller
-                } else if (type === EntityType.UNIT_FLARE) {
-                    sprite.tint = 0xff0000; // Red Unit
-                    sprite.scale.set(0.8);
-                } else if (type === EntityType.PROJECTILE_STANDARD) {
-                    sprite.tint = 0xffffaa; // Light Yellow Projectile
-                    sprite.scale.set(0.3);
-                } else {
-                    sprite.tint = 0xffffff;
-                    sprite.scale.set(1);
+                // Map EntityType to Texture
+                switch (type) {
+                    case EntityType.ITEM_COPPER:
+                        sprite.texture = this.textures['item-copper'] || Texture.WHITE;
+                        sprite.width = TILE_SIZE * 0.6;
+                        sprite.height = TILE_SIZE * 0.6;
+                        break;
+                    case EntityType.UNIT_FLARE:
+                        sprite.texture = this.textures['flare'] || Texture.WHITE;
+                        sprite.width = TILE_SIZE * 1.5; // Units are larger
+                        sprite.height = TILE_SIZE * 1.5;
+                        // Rotation from frame.rot (mapped 0-255 to 0-2PI)
+                        sprite.rotation = (frame.rot[i] / 255) * Math.PI * 2;
+                        break;
+                    case EntityType.PROJECTILE_STANDARD:
+                         // Simple circle/texture for projectile
+                         sprite.texture = Texture.WHITE;
+                         sprite.tint = 0xffffaa;
+                         sprite.width = TILE_SIZE * 0.4;
+                         sprite.height = TILE_SIZE * 0.4;
+                         break;
+                    default:
+                        sprite.visible = false;
+                        break;
                 }
             } else {
                 sprite.visible = false;

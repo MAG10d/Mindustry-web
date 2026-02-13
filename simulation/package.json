@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "npm run build --workspace=@mindustry/shared && tsc"
   },
   "dependencies": {
     "gl-matrix": "^3.4.3",

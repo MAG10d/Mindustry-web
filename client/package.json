@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build --workspace=@mindustry/shared && npm run build --workspace=@mindustry/simulation && tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
